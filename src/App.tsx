@@ -52,7 +52,6 @@ const App = ({ width, height }: { width: number; height: number }) => {
 
   const drawLine = (from: Coordinate, to: Coordinate) => {
     if (!canvasRef.current) return
-    const canvas: HTMLCanvasElement = canvasRef.current
     const context = canvasRef.current.getContext('2d')
     if (context) {
       context.strokeStyle = 'red'
