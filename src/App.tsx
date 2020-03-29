@@ -5,6 +5,11 @@ type Coordinate = {
   y: number
 }
 
+type Pointer = {
+  x: number
+  y: number
+}
+
 const getSize = () => {
   return {
     width: window.innerWidth,
@@ -19,36 +24,38 @@ const App = ({ width, height }: { width: number; height: number }) => {
   )
   const [size, setSize] = useState({ width, height })
 
-  const startPaint = useCallback((event: MouseEvent) => {
-    const coordinates = getCoordinates(event)
+  const startPaint = useCallback((pointer: Pointer) => {
+    const coordinates = getCoordinates(pointer)
     if (coordinates) {
       setIsPainting(true)
       setMousePosition(coordinates)
     }
   }, [])
 
-  const getCoordinates = (event: MouseEvent): Coordinate | undefined => {
+  const mouseEventModifier = useCallback((event: MouseEvent) => {
+    const pointer = { x: event.pageX, y: event.pageY }
+    return pointer
+  }, [])
+
+  const touchEventModifier = useCallback((event: TouchEvent) => {
+    event.preventDefault()
+    const pointer = { x: event.touches[0].pageX, y: event.touches[0].pageY }
+    return pointer
+  }, [])
+
+  const getCoordinates = (p: Pointer): Coordinate | undefined => {
     if (!canvasRef.current) return
     const canvas: HTMLCanvasElement = canvasRef.current
     return {
-      x: event.pageX - canvas.offsetLeft,
-      y: event.pageY - canvas.offsetTop
+      x: p.x - canvas.offsetLeft,
+      y: p.y - canvas.offsetTop
     }
   }
 
-  useEffect(() => {
-    if (!canvasRef.current) return
-    const canvas: HTMLCanvasElement = canvasRef.current
-    canvas.addEventListener('mousedown', startPaint)
-    return () => {
-      canvas.removeEventListener('mousedown', startPaint)
-    }
-  }, [startPaint])
-
   const paint = useCallback(
-    (event: MouseEvent) => {
+    (pointer: Pointer) => {
       if (isPainting) {
-        const newMousePosition = getCoordinates(event)
+        const newMousePosition = getCoordinates(pointer)
         if (mousePosition && newMousePosition) {
           drawLine(mousePosition, newMousePosition)
           setMousePosition(newMousePosition)
@@ -57,6 +64,48 @@ const App = ({ width, height }: { width: number; height: number }) => {
     },
     [isPainting, mousePosition]
   )
+
+  const startMousePaint = useCallback(
+    mouseEvent => {
+      const pointerEvent = mouseEventModifier(mouseEvent)
+      startPaint(pointerEvent)
+    },
+    [mouseEventModifier, startPaint]
+  )
+
+  useEffect(() => {
+    if (!canvasRef.current) return
+    const canvas: HTMLCanvasElement = canvasRef.current
+    canvas.addEventListener('mousedown', startMousePaint)
+    return () => {
+      canvas.removeEventListener('mousedown', startMousePaint)
+    }
+  }, [mouseEventModifier, startMousePaint])
+
+  const mousePaint = useCallback(
+    (mouseEvent: MouseEvent) => {
+      const pointerEvent = mouseEventModifier(mouseEvent)
+      paint(pointerEvent)
+    },
+    [mouseEventModifier, paint]
+  )
+
+  const startTouchPaint = useCallback(
+    touchEvent => {
+      const pointerEvent = touchEventModifier(touchEvent)
+      startPaint(pointerEvent)
+    },
+    [startPaint, touchEventModifier]
+  )
+
+  useEffect(() => {
+    if (!canvasRef.current) return
+    const canvas: HTMLCanvasElement = canvasRef.current
+    canvas.addEventListener('touchstart', startTouchPaint)
+    return () => {
+      canvas.removeEventListener('touchstart', startTouchPaint)
+    }
+  }, [startTouchPaint, touchEventModifier])
 
   const drawLine = (from: Coordinate, to: Coordinate) => {
     if (!canvasRef.current) return
@@ -76,11 +125,28 @@ const App = ({ width, height }: { width: number; height: number }) => {
   useEffect(() => {
     if (!canvasRef.current) return
     const canvas = canvasRef.current
-    canvas.addEventListener('mousemove', paint)
+    canvas.addEventListener('mousemove', mousePaint)
     return () => {
-      canvas.removeEventListener('mousemove', paint)
+      canvas.removeEventListener('mousemove', mousePaint)
     }
-  }, [paint])
+  }, [mousePaint, paint])
+
+  useEffect(() => {
+    if (!canvasRef.current) return
+    const canvas = canvasRef.current
+    canvas.addEventListener('touchmove', touchPaint)
+    return () => {
+      canvas.removeEventListener('touchmove', touchPaint)
+    }
+  })
+
+  const touchPaint = useCallback(
+    touchEvent => {
+      const pointerEvent = touchEventModifier(touchEvent)
+      paint(pointerEvent)
+    },
+    [paint, touchEventModifier]
+  )
 
   const exitPaint = useCallback(() => {
     setIsPainting(false)
@@ -101,9 +167,11 @@ const App = ({ width, height }: { width: number; height: number }) => {
     const canvas = canvasRef.current
     canvas.addEventListener('mouseup', exitPaint)
     canvas.addEventListener('mouseleave', exitPaint)
+    canvas.addEventListener('touched', exitPaint, false)
     return () => {
       canvas.removeEventListener('mouseup', exitPaint)
       canvas.removeEventListener('mouseleave', exitPaint)
+      canvas.removeEventListener('touched', exitPaint)
     }
   }, [exitPaint])
 
@@ -118,6 +186,9 @@ const App = ({ width, height }: { width: number; height: number }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   return (
     <>
+      <span>
+        height:{size.height} width:{size.width}
+      </span>
       <canvas ref={canvasRef} height={size.height} width={size.width} />
     </>
   )
