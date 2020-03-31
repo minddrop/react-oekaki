@@ -2,6 +2,7 @@
   "name": "react-oekaki",
   "version": "0.1.0",
   "private": true,
+  "homepage": "https://minddrop.github.io/react-oekaki/",
   "dependencies": {
     "@testing-library/jest-dom": "^4.2.4",
     "@testing-library/react": "^9.4.1",
